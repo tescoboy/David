@@ -14,12 +14,19 @@ export interface PriceGuidance {
 
 export interface PricingOption {
   pricing_option_id?: string;
-  pricing_model: "CPM" | "CPC" | "flat" | "CPE" | "CPCV";
-  price?: number;
-  price_guidance?: PriceGuidance;
-  fixed_price?: number;
-  floor_price?: number;
+  pricing_model: "cpm" | "cpc" | "flat" | "cpe" | "cpcv";
+  rate?: number;
   currency?: string;
+  is_fixed?: boolean;
+  floor_price?: number;
+  price_guidance?: PriceGuidance;
+}
+
+export interface PublisherPropertySelector {
+  publisher_domain: string;
+  selection_type: "all" | "by_id" | "by_tag";
+  property_ids?: string[];
+  tags?: string[];
 }
 
 export interface TargetingTemplate {
@@ -36,7 +43,7 @@ export interface Product {
   delivery_type: "guaranteed" | "non_guaranteed";
   format_ids: FormatId[];
   pricing_options: PricingOption[];
-  publisher_properties: string[];
+  publisher_properties: PublisherPropertySelector[];
   targeting_template?: TargetingTemplate;
   is_custom?: boolean;
   countries?: string[];

@@ -14,14 +14,17 @@
     "pricing_options": [
       {
         "pricing_option_id": "premium-display-ros-cpm",
-        "pricing_model": "CPM",
-        "price": 5.50,
-        "floor_price": 2.00,
+        "pricing_model": "cpm",
+        "rate": 5.50,
         "currency": "USD",
+        "is_fixed": false,
+        "floor_price": 2.00,
         "price_guidance": { "p25": 3.50, "p50": 5.50, "p75": 8.50 }
       }
     ],
-    "publisher_properties": ["publisher.example.com"],
+    "publisher_properties": [
+      { "publisher_domain": "publisher.example.com", "selection_type": "all" }
+    ],
     "targeting_template": {
       "geo": { "countries": ["US", "CA", "GB"] },
       "device_targets": ["desktop", "mobile", "tablet"]
@@ -41,14 +44,17 @@
     "pricing_options": [
       {
         "pricing_option_id": "premium-video-preroll-cpm",
-        "pricing_model": "CPM",
-        "price": 18.00,
-        "floor_price": 8.00,
+        "pricing_model": "cpm",
+        "rate": 18.00,
         "currency": "USD",
+        "is_fixed": false,
+        "floor_price": 8.00,
         "price_guidance": { "p25": 12.00, "p50": 18.00, "p75": 28.00 }
       }
     ],
-    "publisher_properties": ["publisher.example.com"],
+    "publisher_properties": [
+      { "publisher_domain": "publisher.example.com", "selection_type": "all" }
+    ],
     "targeting_template": {
       "geo": { "countries": ["US", "CA", "GB", "AU"] },
       "device_targets": ["desktop", "mobile", "tablet"]
@@ -68,14 +74,17 @@
     "pricing_options": [
       {
         "pricing_option_id": "ctv-streaming-cpm",
-        "pricing_model": "CPM",
-        "price": 30.00,
-        "floor_price": 18.00,
+        "pricing_model": "cpm",
+        "rate": 30.00,
         "currency": "USD",
+        "is_fixed": true,
+        "floor_price": 18.00,
         "price_guidance": { "p25": 22.00, "p50": 30.00, "p75": 40.00 }
       }
     ],
-    "publisher_properties": ["publisher.example.com"],
+    "publisher_properties": [
+      { "publisher_domain": "publisher.example.com", "selection_type": "all" }
+    ],
     "targeting_template": {
       "geo": { "countries": ["US"] },
       "device_targets": ["ctv"]
@@ -95,14 +104,17 @@
     "pricing_options": [
       {
         "pricing_option_id": "native-content-cpm",
-        "pricing_model": "CPM",
-        "price": 10.00,
-        "floor_price": 4.00,
+        "pricing_model": "cpm",
+        "rate": 10.00,
         "currency": "USD",
+        "is_fixed": false,
+        "floor_price": 4.00,
         "price_guidance": { "p25": 6.00, "p50": 10.00, "p75": 16.00 }
       }
     ],
-    "publisher_properties": ["publisher.example.com"],
+    "publisher_properties": [
+      { "publisher_domain": "publisher.example.com", "selection_type": "all" }
+    ],
     "targeting_template": {
       "geo": { "countries": ["US", "CA", "GB"] },
       "device_targets": ["desktop", "mobile"]
@@ -123,14 +135,17 @@
     "pricing_options": [
       {
         "pricing_option_id": "mobile-display-inapp-cpm",
-        "pricing_model": "CPM",
-        "price": 7.00,
-        "floor_price": 2.50,
+        "pricing_model": "cpm",
+        "rate": 7.00,
         "currency": "USD",
+        "is_fixed": false,
+        "floor_price": 2.50,
         "price_guidance": { "p25": 4.00, "p50": 7.00, "p75": 12.00 }
       }
     ],
-    "publisher_properties": ["publisher.example.com"],
+    "publisher_properties": [
+      { "publisher_domain": "publisher.example.com", "selection_type": "all" }
+    ],
     "targeting_template": {
       "geo": { "countries": ["US", "CA", "GB", "AU", "DE", "FR"] },
       "device_targets": ["mobile", "tablet"]
@@ -150,14 +165,17 @@
     "pricing_options": [
       {
         "pricing_option_id": "audio-streaming-cpm",
-        "pricing_model": "CPM",
-        "price": 14.00,
-        "floor_price": 6.00,
+        "pricing_model": "cpm",
+        "rate": 14.00,
         "currency": "USD",
+        "is_fixed": false,
+        "floor_price": 6.00,
         "price_guidance": { "p25": 8.00, "p50": 14.00, "p75": 22.00 }
       }
     ],
-    "publisher_properties": ["publisher.example.com"],
+    "publisher_properties": [
+      { "publisher_domain": "publisher.example.com", "selection_type": "all" }
+    ],
     "targeting_template": {
       "geo": { "countries": ["US", "CA", "GB", "AU"] },
       "device_targets": ["mobile", "desktop", "tablet"]

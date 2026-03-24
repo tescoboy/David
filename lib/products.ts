@@ -9,15 +9,16 @@ function getAgentUrl(): string {
   return "http://localhost:3000/api/mcp";
 }
 
-// Resolve publisher domain — used in publisher_properties array
+// Resolve publisher domain — used in publisher_properties[].publisher_domain
+// Must be a bare domain: no https://, no trailing slash (e.g. "example.com")
 function getPublisherDomain(): string {
   if (process.env.PUBLISHER_DOMAIN) return process.env.PUBLISHER_DOMAIN;
-  if (process.env.VERCEL_URL) return process.env.VERCEL_URL;
+  // VERCEL_URL is already bare (no https://) — strip any trailing slash just in case
+  if (process.env.VERCEL_URL) return process.env.VERCEL_URL.replace(/\/$/, "");
   return "publisher.example.com";
 }
 
-// Inject agent_url into every format_id entry so evaluators can validate format specs
-// Also inject publisher_properties with the correct domain string
+// Inject agent_url into every format_id entry and publisher_properties with correct schema
 function injectDynamicFields(products: Product[]): Product[] {
   const agentUrl = getAgentUrl();
   const publisherDomain = getPublisherDomain();
@@ -27,7 +28,8 @@ function injectDynamicFields(products: Product[]): Product[] {
       ...f,
       agent_url: agentUrl,
     })),
-    publisher_properties: [publisherDomain],
+    // AdCP v3: publisher_properties is array of {publisher_domain, selection_type} objects
+    publisher_properties: [{ publisher_domain: publisherDomain, selection_type: "all" as const }],
   }));
 }
 
