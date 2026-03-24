@@ -14,8 +14,8 @@ import { getAdcpCapabilities } from "@/lib/tools/capabilities";
 import { getProducts } from "@/lib/products";
 import {
   createMediaBuy,
-  fetchMediaBuy,
-  patchMediaBuy,
+  getMediaBuy,
+  updateMediaBuy,
 } from "@/lib/tools/media-buy";
 import type { McpRequest, McpResponse, McpTool } from "@/lib/types";
 
@@ -388,19 +388,15 @@ function dispatchTool(name: string, args: ToolArgs): ToolResult {
           });
         }
 
-        // Validate budgets BEFORE product lookup — catch negative/zero values
+        // Validate budgets — reject negative values
         const pkgs = args.packages as Array<Record<string, unknown>>;
         for (let i = 0; i < pkgs.length; i++) {
-          const pkg = pkgs[i];
-          const rawBudget = pkg.budget;
-          // budget may be a plain number or { amount: number, currency: string }
-          const budgetAmount = typeof rawBudget === "number"
-            ? rawBudget
-            : typeof rawBudget === "object" && rawBudget !== null
-              ? (rawBudget as Record<string, unknown>).amount as number
-              : undefined;
-          if (budgetAmount !== undefined && budgetAmount < 0) {
-            return adcpError("packages[" + i + "].budget must be a positive number", {
+          const raw = pkgs[i].budget;
+          const amt = typeof raw === "number" ? raw
+            : (raw && typeof raw === "object") ? (raw as Record<string, unknown>).amount as number
+            : undefined;
+          if (amt !== undefined && amt < 0) {
+            return adcpError(`packages[${i}].budget must be a positive number`, {
               code: "BUDGET_TOO_LOW",
               field: `packages[${i}].budget`,
               suggestion: "Provide a positive budget value.",
@@ -408,11 +404,11 @@ function dispatchTool(name: string, args: ToolArgs): ToolResult {
           }
         }
 
-        // Validate start_time/end_time ordering
+        // Validate date ordering
         if (args.start_time && args.end_time) {
-          const start = new Date(args.start_time as string).getTime();
-          const end = new Date(args.end_time as string).getTime();
-          if (!isNaN(start) && !isNaN(end) && end <= start) {
+          const s = new Date(args.start_time as string).getTime();
+          const e = new Date(args.end_time as string).getTime();
+          if (!isNaN(s) && !isNaN(e) && e <= s) {
             return adcpError("end_time must be after start_time", {
               code: "INVALID_REQUEST",
               field: "end_time",
@@ -424,19 +420,16 @@ function dispatchTool(name: string, args: ToolArgs): ToolResult {
         const result = createMediaBuy({
           buyer_ref: args.buyer_ref as string,
           brand: args.brand as { domain?: string } | undefined,
-          packages: args.packages as Array<{
-            product_id: string;
-            budget?: { amount: number; currency: string };
-            impressions?: number;
-          }>,
-          start_time: args.start_time as string | undefined,
-          end_time: args.end_time as string | undefined,
+          packages: (args.packages as Array<Record<string, unknown>>).map((p) => ({
+            product_id: p.product_id as string,
+            pricing_option_id: p.pricing_option_id as string | undefined,
+            budget: p.budget as number | { amount: number; currency: string } | undefined,
+            impressions: p.impressions as number | undefined,
+          })),
           budget: args.budget as { amount: number; currency: string } | undefined,
           po_number: args.po_number as string | undefined,
         });
-        // Return content-only — evaluator falls back to parsing content[0].text
-        // Omitting structuredContent avoids the _message merge in unwrapMCPResponse
-        // which can interfere with schema validation in some evaluator builds.
+
         return {
           content: [{ type: "text", text: JSON.stringify(result) }],
         };
@@ -446,10 +439,9 @@ function dispatchTool(name: string, args: ToolArgs): ToolResult {
         if (!args.media_buy_id) {
           return adcpError("media_buy_id is required", { field: "media_buy_id" });
         }
-        const buy = fetchMediaBuy(args.media_buy_id as string);
+        const buy = getMediaBuy(args.media_buy_id as string);
         return {
           content: [{ type: "text", text: JSON.stringify(buy) }],
-          structuredContent: buy as unknown as Record<string, unknown>,
         };
       }
 
@@ -458,21 +450,10 @@ function dispatchTool(name: string, args: ToolArgs): ToolResult {
           return adcpError("media_buy_id is required", { field: "media_buy_id" });
         }
 
-        // Derive status from paused/canceled booleans if explicit status not set
-        let resolvedStatus = args.status as string | undefined;
-        if (args.canceled === true) {
-          resolvedStatus = "canceled";
-        } else if (args.paused === true) {
-          resolvedStatus = "paused";
-        } else if (args.paused === false) {
-          resolvedStatus = "active";
-        }
-
-        const updated = patchMediaBuy(args.media_buy_id as string, {
-          status: resolvedStatus,
-          start_time: args.start_time as string | undefined,
-          end_time: args.end_time as string | undefined,
-          budget: args.budget as { amount: number; currency: string } | undefined,
+        const updated = updateMediaBuy(args.media_buy_id as string, {
+          status: args.status as string | undefined,
+          paused: args.paused as boolean | undefined,
+          canceled: args.canceled as boolean | undefined,
         });
 
         if (!updated) {
