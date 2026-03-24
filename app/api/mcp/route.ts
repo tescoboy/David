@@ -247,6 +247,14 @@ const TOOLS: McpTool[] = [
             currency: { type: "string" },
           },
         },
+        paused: {
+          type: "boolean",
+          description: "Pause (true) or resume (false) the media buy",
+        },
+        canceled: {
+          type: "boolean",
+          description: "Cancel the media buy (true to cancel)",
+        },
       },
       required: ["media_buy_id"],
     },
@@ -427,12 +435,32 @@ function dispatchTool(name: string, args: ToolArgs): ToolResult {
         if (!args.media_buy_id) {
           return adcpError("media_buy_id is required", { field: "media_buy_id" });
         }
+
+        // Derive status from paused/canceled booleans if explicit status not set
+        let resolvedStatus = args.status as string | undefined;
+        if (args.canceled === true) {
+          resolvedStatus = "canceled";
+        } else if (args.paused === true) {
+          resolvedStatus = "paused";
+        } else if (args.paused === false) {
+          resolvedStatus = "active";
+        }
+
         const updated = patchMediaBuy(args.media_buy_id as string, {
-          status: args.status as string | undefined,
+          status: resolvedStatus,
           start_time: args.start_time as string | undefined,
           end_time: args.end_time as string | undefined,
           budget: args.budget as { amount: number; currency: string } | undefined,
         });
+
+        if (!updated) {
+          return adcpError(`Media buy not found: ${args.media_buy_id}`, {
+            code: "INVALID_REQUEST",
+            field: "media_buy_id",
+            suggestion: "Use the media_buy_id returned by create_media_buy.",
+          });
+        }
+
         return {
           content: [{ type: "text", text: JSON.stringify(updated) }],
           structuredContent: updated as unknown as Record<string, unknown>,
