@@ -259,113 +259,130 @@ const TOOLS: McpTool[] = [
 
 type ToolArgs = Record<string, unknown>;
 
-function dispatchTool(
-  name: string,
-  args: ToolArgs
-): { content: Array<{ type: string; text: string }> } {
-  switch (name) {
-    case "get_adcp_capabilities": {
-      const caps = getAdcpCapabilities();
-      return {
-        content: [
-          {
-            type: "text",
-            text: JSON.stringify(caps, null, 2),
-          },
-        ],
-      };
-    }
+interface ToolResult {
+  content: Array<{ type: string; text: string }>;
+  isError?: boolean;
+}
 
-    case "get_products": {
-      const products = getProducts({
-        brief: args.brief as string | undefined,
-        brand: args.brand as { domain?: string } | undefined,
-        filters: args.filters as
-          | {
-              channels?: string[];
-              delivery_type?: string;
-              device_types?: string[];
-            }
-          | undefined,
-      });
-      const count = products.length;
-      const message =
-        count === 0
-          ? "No products matched your requirements."
-          : count === 1
-          ? "Found 1 product that matches your requirements."
-          : `Found ${count} products that match your requirements.`;
-      return {
-        content: [
-          {
-            type: "text",
-            text: message + "\n\n" + JSON.stringify({ products }, null, 2),
-          },
-        ],
-      };
-    }
+// Map error messages to AdCP error codes
+function classifyError(message: string): string {
+  const msg = message.toLowerCase();
+  if (msg.includes("not found")) return "NOT_FOUND";
+  if (msg.includes("required") || msg.includes("missing")) return "INVALID_REQUEST";
+  if (msg.includes("invalid") || msg.includes("bad")) return "VALIDATION_ERROR";
+  if (msg.includes("unauthorized") || msg.includes("auth")) return "UNAUTHORIZED";
+  return "INTERNAL_ERROR";
+}
 
-    case "create_media_buy": {
-      const result = createMediaBuy({
-        buyer_ref: args.buyer_ref as string,
-        brand: args.brand as { domain?: string } | undefined,
-        packages: args.packages as Array<{
-          product_id: string;
-          budget?: { amount: number; currency: string };
-          impressions?: number;
-        }>,
-        start_time: args.start_time as string | undefined,
-        end_time: args.end_time as string | undefined,
-        budget: args.budget as
-          | { amount: number; currency: string }
-          | undefined,
-        po_number: args.po_number as string | undefined,
-      });
-      return {
-        content: [
-          {
-            type: "text",
-            text: result.message + "\n\n" + JSON.stringify(result, null, 2),
-          },
-        ],
-      };
-    }
+function adcpError(message: string, recovery?: string): ToolResult {
+  const error_code = classifyError(message);
+  const defaultRecovery: Record<string, string> = {
+    NOT_FOUND: "Check the ID is correct. Use get_products or get_media_buy to look up valid IDs.",
+    INVALID_REQUEST: "Check all required fields are present and correctly formatted.",
+    VALIDATION_ERROR: "Review the input values and correct any invalid fields.",
+    UNAUTHORIZED: "Provide a valid auth token in the Authorization header.",
+    INTERNAL_ERROR: "An unexpected error occurred. Please retry.",
+  };
+  return {
+    isError: true,
+    content: [
+      {
+        type: "text",
+        text: JSON.stringify({
+          error_code,
+          message,
+          recovery: recovery ?? defaultRecovery[error_code],
+          details: null,
+        }),
+      },
+    ],
+  };
+}
 
-    case "get_media_buy": {
-      const buy = fetchMediaBuy(args.media_buy_id as string);
-      return {
-        content: [
-          {
-            type: "text",
-            text: JSON.stringify(buy, null, 2),
-          },
-        ],
-      };
-    }
+function dispatchTool(name: string, args: ToolArgs): ToolResult {
+  try {
+    switch (name) {
+      case "get_adcp_capabilities": {
+        const caps = getAdcpCapabilities();
+        return {
+          content: [{ type: "text", text: JSON.stringify(caps) }],
+        };
+      }
 
-    case "update_media_buy": {
-      const updated = patchMediaBuy(args.media_buy_id as string, {
-        status: args.status as string | undefined,
-        start_time: args.start_time as string | undefined,
-        end_time: args.end_time as string | undefined,
-        budget: args.budget as
-          | { amount: number; currency: string }
-          | undefined,
-      });
-      return {
-        content: [
-          {
-            type: "text",
-            text:
-              "Media buy updated successfully.\n\n" +
-              JSON.stringify(updated, null, 2),
-          },
-        ],
-      };
-    }
+      case "get_products": {
+        const products = getProducts({
+          brief: args.brief as string | undefined,
+          brand: args.brand as { domain?: string } | undefined,
+          filters: args.filters as
+            | {
+                channels?: string[];
+                delivery_type?: string;
+                device_types?: string[];
+              }
+            | undefined,
+        });
+        // Return a clean JSON object — no text preamble so parsers can JSON.parse directly
+        return {
+          content: [{ type: "text", text: JSON.stringify({ products }) }],
+        };
+      }
 
-    default:
-      throw new Error(`Unknown tool: ${name}`);
+      case "create_media_buy": {
+        if (!args.buyer_ref) {
+          return adcpError("buyer_ref is required", "Provide a unique buyer_ref string to identify this order.");
+        }
+        if (!args.packages || !Array.isArray(args.packages) || (args.packages as unknown[]).length === 0) {
+          return adcpError("packages is required and must contain at least one item", "Provide an array of packages, each with a product_id.");
+        }
+        const result = createMediaBuy({
+          buyer_ref: args.buyer_ref as string,
+          brand: args.brand as { domain?: string } | undefined,
+          packages: args.packages as Array<{
+            product_id: string;
+            budget?: { amount: number; currency: string };
+            impressions?: number;
+          }>,
+          start_time: args.start_time as string | undefined,
+          end_time: args.end_time as string | undefined,
+          budget: args.budget as { amount: number; currency: string } | undefined,
+          po_number: args.po_number as string | undefined,
+        });
+        return {
+          content: [{ type: "text", text: JSON.stringify(result) }],
+        };
+      }
+
+      case "get_media_buy": {
+        if (!args.media_buy_id) {
+          return adcpError("media_buy_id is required");
+        }
+        const buy = fetchMediaBuy(args.media_buy_id as string);
+        return {
+          content: [{ type: "text", text: JSON.stringify(buy) }],
+        };
+      }
+
+      case "update_media_buy": {
+        if (!args.media_buy_id) {
+          return adcpError("media_buy_id is required");
+        }
+        const updated = patchMediaBuy(args.media_buy_id as string, {
+          status: args.status as string | undefined,
+          start_time: args.start_time as string | undefined,
+          end_time: args.end_time as string | undefined,
+          budget: args.budget as { amount: number; currency: string } | undefined,
+        });
+        return {
+          content: [{ type: "text", text: JSON.stringify(updated) }],
+        };
+      }
+
+      default:
+        return adcpError(`Unknown tool: ${name}`, "Call tools/list to see available tools.");
+    }
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    return adcpError(message);
   }
 }
 
@@ -422,8 +439,10 @@ function handleMessage(req: McpRequest): McpResponse {
           };
         }
 
-        const result = dispatchTool(toolName, toolArgs);
-        return { jsonrpc: "2.0", id, result };
+        // dispatchTool never throws — errors are returned as AdCP error objects
+        // with isError:true so the evaluator receives structured responses
+        const toolResult = dispatchTool(toolName, toolArgs);
+        return { jsonrpc: "2.0", id, result: toolResult };
       }
 
       case "resources/list":
