@@ -9,15 +9,25 @@ function getAgentUrl(): string {
   return "http://localhost:3000/api/mcp";
 }
 
+// Resolve publisher domain — used in publisher_properties array
+function getPublisherDomain(): string {
+  if (process.env.PUBLISHER_DOMAIN) return process.env.PUBLISHER_DOMAIN;
+  if (process.env.VERCEL_URL) return process.env.VERCEL_URL;
+  return "publisher.example.com";
+}
+
 // Inject agent_url into every format_id entry so evaluators can validate format specs
-function injectAgentUrl(products: Product[]): Product[] {
+// Also inject publisher_properties with the correct domain string
+function injectDynamicFields(products: Product[]): Product[] {
   const agentUrl = getAgentUrl();
+  const publisherDomain = getPublisherDomain();
   return products.map((p) => ({
     ...p,
     format_ids: p.format_ids.map((f) => ({
       ...f,
       agent_url: agentUrl,
     })),
+    publisher_properties: [publisherDomain],
   }));
 }
 
@@ -28,7 +38,7 @@ function loadProducts(): Product[] {
   if (envProducts) {
     try {
       const parsed = JSON.parse(envProducts);
-      if (Array.isArray(parsed) && parsed.length > 0) return injectAgentUrl(parsed as Product[]);
+      if (Array.isArray(parsed) && parsed.length > 0) return injectDynamicFields(parsed as Product[]);
     } catch {
       console.error("Failed to parse PRODUCTS_JSON env var, using default products");
     }
@@ -36,7 +46,7 @@ function loadProducts(): Product[] {
   // Static import bundled at build time — guaranteed non-empty
   const defaults = productsData as Product[];
   const raw = Array.isArray(defaults) && defaults.length > 0 ? defaults : [];
-  return injectAgentUrl(raw);
+  return injectDynamicFields(raw);
 }
 
 // Simple text relevance scoring — ranks products by how well they match a brief
@@ -66,7 +76,7 @@ function scoreProduct(product: Product, brief: string): number {
     if (product.delivery_type === "guaranteed") score += 5;
   }
   if (briefLower.includes("programmatic") || briefLower.includes("auction") || briefLower.includes("rtb")) {
-    if (product.delivery_type === "auction") score += 5;
+    if (product.delivery_type === "non_guaranteed") score += 5;
   }
 
   // Device targeting keywords

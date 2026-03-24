@@ -4,7 +4,7 @@
     "name": "Premium Display — Run of Site",
     "description": "High-impact display advertising across our full premium news and lifestyle network. Includes brand safety measures and viewability optimisation. Best for awareness campaigns targeting broad audiences.",
     "channels": ["display"],
-    "delivery_type": "auction",
+    "delivery_type": "non_guaranteed",
     "format_ids": [
       { "id": "300x250" },
       { "id": "728x90" },
@@ -21,9 +21,7 @@
         "price_guidance": { "p25": 3.50, "p50": 5.50, "p75": 8.50 }
       }
     ],
-    "publisher_properties": [
-      { "selection_type": "all" }
-    ],
+    "publisher_properties": ["publisher.example.com"],
     "targeting_template": {
       "geo": { "countries": ["US", "CA", "GB"] },
       "device_targets": ["desktop", "mobile", "tablet"]
@@ -35,7 +33,7 @@
     "name": "Premium Video Pre-Roll",
     "description": "15- and 30-second pre-roll video ads on premium editorial video content. High completion rates with engaged audiences. Ideal for video awareness and brand recall campaigns.",
     "channels": ["olv"],
-    "delivery_type": "auction",
+    "delivery_type": "non_guaranteed",
     "format_ids": [
       { "id": "video_15s" },
       { "id": "video_30s" }
@@ -50,9 +48,7 @@
         "price_guidance": { "p25": 12.00, "p50": 18.00, "p75": 28.00 }
       }
     ],
-    "publisher_properties": [
-      { "selection_type": "all" }
-    ],
+    "publisher_properties": ["publisher.example.com"],
     "targeting_template": {
       "geo": { "countries": ["US", "CA", "GB", "AU"] },
       "device_targets": ["desktop", "mobile", "tablet"]
@@ -79,9 +75,7 @@
         "price_guidance": { "p25": 22.00, "p50": 30.00, "p75": 40.00 }
       }
     ],
-    "publisher_properties": [
-      { "selection_type": "all" }
-    ],
+    "publisher_properties": ["publisher.example.com"],
     "targeting_template": {
       "geo": { "countries": ["US"] },
       "device_targets": ["ctv"]
@@ -93,7 +87,7 @@
     "name": "Native Content Integration",
     "description": "Seamlessly integrated native ad units that match the look and feel of editorial content. Includes sponsored article placements and in-feed native units. High engagement with editorial audiences.",
     "channels": ["display"],
-    "delivery_type": "auction",
+    "delivery_type": "non_guaranteed",
     "format_ids": [
       { "id": "native_in_feed" },
       { "id": "native_article" }
@@ -108,9 +102,7 @@
         "price_guidance": { "p25": 6.00, "p50": 10.00, "p75": 16.00 }
       }
     ],
-    "publisher_properties": [
-      { "selection_type": "all" }
-    ],
+    "publisher_properties": ["publisher.example.com"],
     "targeting_template": {
       "geo": { "countries": ["US", "CA", "GB"] },
       "device_targets": ["desktop", "mobile"]
@@ -122,7 +114,7 @@
     "name": "Mobile In-App Display",
     "description": "High-visibility display advertising within our mobile app ecosystem. Includes interstitial and banner placements with precise targeting capabilities. Best for driving app installs and mobile conversions.",
     "channels": ["display"],
-    "delivery_type": "auction",
+    "delivery_type": "non_guaranteed",
     "format_ids": [
       { "id": "320x50" },
       { "id": "300x250" },
@@ -138,9 +130,7 @@
         "price_guidance": { "p25": 4.00, "p50": 7.00, "p75": 12.00 }
       }
     ],
-    "publisher_properties": [
-      { "selection_type": "all" }
-    ],
+    "publisher_properties": ["publisher.example.com"],
     "targeting_template": {
       "geo": { "countries": ["US", "CA", "GB", "AU", "DE", "FR"] },
       "device_targets": ["mobile", "tablet"]
@@ -152,7 +142,7 @@
     "name": "Streaming Audio Advertising",
     "description": "Audio ads delivered across our streaming music and podcast network. 15- and 30-second spots with companion display banners. Reach engaged listeners in a brand-safe audio environment.",
     "channels": ["streaming_audio"],
-    "delivery_type": "auction",
+    "delivery_type": "non_guaranteed",
     "format_ids": [
       { "id": "audio_15s" },
       { "id": "audio_30s" }
@@ -167,9 +157,7 @@
         "price_guidance": { "p25": 8.00, "p50": 14.00, "p75": 22.00 }
       }
     ],
-    "publisher_properties": [
-      { "selection_type": "all" }
-    ],
+    "publisher_properties": ["publisher.example.com"],
     "targeting_template": {
       "geo": { "countries": ["US", "CA", "GB", "AU"] },
       "device_targets": ["mobile", "desktop", "tablet"]

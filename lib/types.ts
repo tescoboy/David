@@ -22,12 +22,6 @@ export interface PricingOption {
   currency?: string;
 }
 
-export interface PublisherPropertySelector {
-  selection_type: "all" | "by_id" | "by_tag";
-  property_ids?: string[];
-  tags?: string[];
-}
-
 export interface TargetingTemplate {
   geo?: { countries?: string[]; metros?: string[] };
   audience?: { age_groups?: string[]; interests?: string[] };
@@ -39,10 +33,10 @@ export interface Product {
   name: string;
   description: string;
   channels: string[];
-  delivery_type: "auction" | "guaranteed";
+  delivery_type: "guaranteed" | "non_guaranteed";
   format_ids: FormatId[];
   pricing_options: PricingOption[];
-  publisher_properties: PublisherPropertySelector[];
+  publisher_properties: string[];
   targeting_template?: TargetingTemplate;
   is_custom?: boolean;
   countries?: string[];
