@@ -27,3 +27,6 @@ yarn-error.log*
 .DS_Store
 *.pem
 .vercel
+.github/
+*.tgz
+tsconfig.tsbuildinfo

@@ -255,6 +255,28 @@ const TOOLS: McpTool[] = [
           type: "boolean",
           description: "Cancel the media buy (true to cancel)",
         },
+        cancellation_reason: {
+          type: "string",
+          description: "Reason for cancellation",
+        },
+        revision: {
+          type: "number",
+          description: "Optimistic concurrency revision number (ignored if server does not track revisions)",
+        },
+        packages: {
+          type: "array",
+          description: "Package-level updates (e.g. budget changes)",
+          items: {
+            type: "object",
+            properties: {
+              package_id: { type: "string" },
+              budget: { type: "number" },
+              paused: { type: "boolean" },
+              canceled: { type: "boolean" },
+            },
+            required: ["package_id"],
+          },
+        },
       },
       required: ["media_buy_id"],
     },

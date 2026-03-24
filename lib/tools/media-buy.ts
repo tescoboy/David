@@ -117,20 +117,21 @@ export function patchMediaBuy(
     end_time?: string;
     budget?: { amount: number; currency: string };
   }
-): MediaBuy {
+): MediaBuy | null {
   const buy = getMediaBuy(mediaBuyId);
-  if (!buy) {
-    throw new Error(`Media buy '${mediaBuyId}' not found`);
-  }
+  if (!buy) return null;
 
   const validStatuses = ["pending_activation", "active", "paused", "completed", "rejected", "canceled"];
   if (updates.status && !validStatuses.includes(updates.status)) {
     throw new Error(`Invalid status: ${updates.status}. Must be one of: ${validStatuses.join(", ")}`);
   }
 
-  const updated = updateMediaBuy(mediaBuyId, updates as Partial<MediaBuy>);
-  if (!updated) {
-    throw new Error("Failed to update media buy");
-  }
+  // Strip undefined values so they don't overwrite existing fields when spread
+  const cleanUpdates = Object.fromEntries(
+    Object.entries(updates).filter(([, v]) => v !== undefined)
+  ) as Partial<MediaBuy>;
+
+  const updated = updateMediaBuy(mediaBuyId, cleanUpdates);
+  if (!updated) return null;
   return updated;
 }
