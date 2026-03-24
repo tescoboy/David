@@ -14,7 +14,7 @@ export interface PriceGuidance {
 
 export interface PricingOption {
   pricing_option_id?: string;
-  pricing_model: "CPM" | "CPC" | "CPV" | "vCPM" | "CPCV";
+  pricing_model: "CPM" | "CPC" | "flat" | "CPE" | "CPCV";
   price?: number;
   price_guidance?: PriceGuidance;
   fixed_price?: number;

@@ -117,7 +117,7 @@ const TOOLS: McpTool[] = [
             },
             delivery_type: {
               type: "string",
-              enum: ["auction", "guaranteed"],
+              enum: ["guaranteed", "non_guaranteed"],
               description: "Filter by delivery type",
             },
             device_types: {
@@ -350,8 +350,8 @@ function dispatchTool(name: string, args: ToolArgs): ToolResult {
           po_number: args.po_number as string | undefined,
         });
         return {
-          content: [{ type: "text", text: JSON.stringify(result) }],
-          structuredContent: result as unknown as Record<string, unknown>,
+          content: [{ type: "text", text: JSON.stringify({ media_buy: result }) }],
+          structuredContent: { media_buy: result },
         };
       }
 
@@ -361,8 +361,8 @@ function dispatchTool(name: string, args: ToolArgs): ToolResult {
         }
         const buy = fetchMediaBuy(args.media_buy_id as string);
         return {
-          content: [{ type: "text", text: JSON.stringify(buy) }],
-          structuredContent: buy as unknown as Record<string, unknown>,
+          content: [{ type: "text", text: JSON.stringify({ media_buy: buy }) }],
+          structuredContent: { media_buy: buy },
         };
       }
 
@@ -377,8 +377,8 @@ function dispatchTool(name: string, args: ToolArgs): ToolResult {
           budget: args.budget as { amount: number; currency: string } | undefined,
         });
         return {
-          content: [{ type: "text", text: JSON.stringify(updated) }],
-          structuredContent: updated as unknown as Record<string, unknown>,
+          content: [{ type: "text", text: JSON.stringify({ media_buy: updated }) }],
+          structuredContent: { media_buy: updated },
         };
       }
 
