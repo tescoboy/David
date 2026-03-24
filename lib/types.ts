@@ -81,7 +81,7 @@ export interface MediaBuy {
 export interface MediaBuyPackage {
   package_id: string;
   product_id: string;
-  budget?: { amount: number; currency: string };
+  budget?: number | { amount: number; currency: string };
   impressions?: number;
   targeting?: TargetingTemplate;
 }
@@ -91,7 +91,8 @@ export interface CreateMediaBuyRequest {
   brand?: { domain?: string };
   packages: Array<{
     product_id: string;
-    budget?: { amount: number; currency: string };
+    // budget can be plain number (evaluator sends -500) or { amount, currency }
+    budget?: number | { amount: number; currency: string };
     impressions?: number;
     targeting?: TargetingTemplate;
   }>;

@@ -3,13 +3,22 @@ import { MediaBuy, CreateMediaBuyRequest, MediaBuyPackage } from "../types";
 import { saveMediaBuy, getMediaBuy, updateMediaBuy } from "../store";
 import { getProductById } from "../products";
 
-// Response matches CreateMediaBuySuccessSchema from @adcp/client:
-// { media_buy_id: string, status?, packages: PackageSchema[] } — flat, no wrapper
-export function createMediaBuy(req: CreateMediaBuyRequest): {
+// CreateMediaBuySuccessSchema required fields:
+// { media_buy_id, status, promoted_offering, total_budget, packages[{package_id, product_id, status, budget}] }
+interface CreateMediaBuySuccess {
   media_buy_id: string;
   status: string;
-  packages: Array<{ package_id: string; product_id?: string }>;
-} {
+  promoted_offering: string;
+  total_budget: number;
+  packages: Array<{
+    package_id: string;
+    product_id?: string;
+    status: string;
+    budget?: number;
+  }>;
+}
+
+export function createMediaBuy(req: CreateMediaBuyRequest): CreateMediaBuySuccess {
   // Validate buyer_ref
   if (!req.buyer_ref) {
     throw new Error("buyer_ref is required");
@@ -41,6 +50,20 @@ export function createMediaBuy(req: CreateMediaBuyRequest): {
   const mediaBuyId = `mb-${uuidv4()}`;
   const now = new Date().toISOString();
 
+  // Resolve total_budget from top-level or sum of packages
+  const topBudget = req.budget?.amount;
+  const pkgBudgetSum = req.packages.reduce((acc, pkg) => {
+    const b = pkg.budget;
+    const amount = typeof b === "number" ? b : b?.amount ?? 0;
+    return acc + amount;
+  }, 0);
+  const totalBudget = topBudget ?? pkgBudgetSum ?? 0;
+
+  // promoted_offering: brand domain if provided, else buyer_ref
+  const promotedOffering = req.brand?.domain
+    ? `${req.brand.domain} — ${req.buyer_ref}`
+    : req.buyer_ref;
+
   const mediaBuy: MediaBuy = {
     media_buy_id: mediaBuyId,
     buyer_ref: req.buyer_ref,
@@ -56,11 +79,25 @@ export function createMediaBuy(req: CreateMediaBuyRequest): {
 
   saveMediaBuy(mediaBuy);
 
-  // Return flat CreateMediaBuySuccessSchema format
+  // Return flat CreateMediaBuySuccessSchema with all required fields
   return {
     media_buy_id: mediaBuyId,
     status: "pending_activation",
-    packages: packages.map((p) => ({ package_id: p.package_id, product_id: p.product_id })),
+    promoted_offering: promotedOffering,
+    total_budget: totalBudget,
+    packages: packages.map((p) => {
+      const rawBudget = req.packages.find(
+        (rp) => rp.product_id === p.product_id
+      )?.budget;
+      const budgetAmount =
+        typeof rawBudget === "number" ? rawBudget : rawBudget?.amount ?? 0;
+      return {
+        package_id: p.package_id,
+        product_id: p.product_id,
+        status: "pending_activation",
+        budget: budgetAmount,
+      };
+    }),
   };
 }
 

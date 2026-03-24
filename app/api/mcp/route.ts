@@ -357,6 +357,40 @@ function dispatchTool(name: string, args: ToolArgs): ToolResult {
             suggestion: "Provide an array of packages, each with a product_id.",
           });
         }
+
+        // Validate budgets BEFORE product lookup — catch negative/zero values
+        const pkgs = args.packages as Array<Record<string, unknown>>;
+        for (let i = 0; i < pkgs.length; i++) {
+          const pkg = pkgs[i];
+          const rawBudget = pkg.budget;
+          // budget may be a plain number or { amount: number, currency: string }
+          const budgetAmount = typeof rawBudget === "number"
+            ? rawBudget
+            : typeof rawBudget === "object" && rawBudget !== null
+              ? (rawBudget as Record<string, unknown>).amount as number
+              : undefined;
+          if (budgetAmount !== undefined && budgetAmount < 0) {
+            return adcpError("packages[" + i + "].budget must be a positive number", {
+              code: "BUDGET_TOO_LOW",
+              field: `packages[${i}].budget`,
+              suggestion: "Provide a positive budget value.",
+            });
+          }
+        }
+
+        // Validate start_time/end_time ordering
+        if (args.start_time && args.end_time) {
+          const start = new Date(args.start_time as string).getTime();
+          const end = new Date(args.end_time as string).getTime();
+          if (!isNaN(start) && !isNaN(end) && end <= start) {
+            return adcpError("end_time must be after start_time", {
+              code: "INVALID_REQUEST",
+              field: "end_time",
+              suggestion: "Set end_time to a date after start_time.",
+            });
+          }
+        }
+
         const result = createMediaBuy({
           buyer_ref: args.buyer_ref as string,
           brand: args.brand as { domain?: string } | undefined,
