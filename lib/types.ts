@@ -133,7 +133,8 @@ export interface McpTool {
 
 // AdCP Capabilities response
 export interface AdcpCapabilities {
-  adcp: { major_versions: number[] };
+  adcp: { major_versions: number[]; version?: string };
+  adcp_version?: string;
   supported_protocols: string[];
   portfolio?: {
     description: string;

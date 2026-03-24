@@ -7,8 +7,10 @@ export function getAdcpCapabilities(): AdcpCapabilities {
   return {
     adcp: {
       major_versions: [3],
+      version: "3.0",
     },
     supported_protocols: ["media_buy"],
+    adcp_version: "3.0",
     portfolio: {
       description: `Advertising inventory from ${agentName}. Premium digital advertising across display, video, CTV, native, and audio formats.`,
       primary_channels: ["display", "olv", "ctv", "streaming_audio"],

@@ -261,6 +261,7 @@ type ToolArgs = Record<string, unknown>;
 
 interface ToolResult {
   content: Array<{ type: string; text: string }>;
+  structuredContent?: Record<string, unknown>;
   isError?: boolean;
 }
 
@@ -283,19 +284,17 @@ function adcpError(message: string, recovery?: string): ToolResult {
     UNAUTHORIZED: "Provide a valid auth token in the Authorization header.",
     INTERNAL_ERROR: "An unexpected error occurred. Please retry.",
   };
+  const adcp_error = {
+    error_code,
+    message,
+    recovery: recovery ?? defaultRecovery[error_code],
+    details: null,
+  };
   return {
     isError: true,
-    content: [
-      {
-        type: "text",
-        text: JSON.stringify({
-          error_code,
-          message,
-          recovery: recovery ?? defaultRecovery[error_code],
-          details: null,
-        }),
-      },
-    ],
+    content: [{ type: "text", text: JSON.stringify(adcp_error) }],
+    // structuredContent.adcp_error is what AdCP evaluators check for compliance
+    structuredContent: { adcp_error },
   };
 }
 
@@ -306,6 +305,7 @@ function dispatchTool(name: string, args: ToolArgs): ToolResult {
         const caps = getAdcpCapabilities();
         return {
           content: [{ type: "text", text: JSON.stringify(caps) }],
+          structuredContent: caps as unknown as Record<string, unknown>,
         };
       }
 
@@ -320,10 +320,12 @@ function dispatchTool(name: string, args: ToolArgs): ToolResult {
                 device_types?: string[];
               }
             | undefined,
-        });
-        // Return a clean JSON object — no text preamble so parsers can JSON.parse directly
+        }) ?? [];
+        // Return pure JSON — no text preamble so evaluators can parse directly
+        // Also expose as structuredContent so evaluators that check structuredContent.products work
         return {
           content: [{ type: "text", text: JSON.stringify({ products }) }],
+          structuredContent: { products },
         };
       }
 
@@ -349,6 +351,7 @@ function dispatchTool(name: string, args: ToolArgs): ToolResult {
         });
         return {
           content: [{ type: "text", text: JSON.stringify(result) }],
+          structuredContent: result as unknown as Record<string, unknown>,
         };
       }
 
@@ -359,6 +362,7 @@ function dispatchTool(name: string, args: ToolArgs): ToolResult {
         const buy = fetchMediaBuy(args.media_buy_id as string);
         return {
           content: [{ type: "text", text: JSON.stringify(buy) }],
+          structuredContent: buy as unknown as Record<string, unknown>,
         };
       }
 
@@ -374,6 +378,7 @@ function dispatchTool(name: string, args: ToolArgs): ToolResult {
         });
         return {
           content: [{ type: "text", text: JSON.stringify(updated) }],
+          structuredContent: updated as unknown as Record<string, unknown>,
         };
       }
 

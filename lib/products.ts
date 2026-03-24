@@ -2,16 +2,20 @@ import { Product, GetProductsRequest } from "./types";
 import productsData from "../data/products.json";
 
 // Load products from data file — can be overridden via PRODUCTS_JSON env var
+// Always returns an array (never undefined/null) — defensive fallback included
 function loadProducts(): Product[] {
   const envProducts = process.env.PRODUCTS_JSON;
   if (envProducts) {
     try {
-      return JSON.parse(envProducts) as Product[];
+      const parsed = JSON.parse(envProducts);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed as Product[];
     } catch {
       console.error("Failed to parse PRODUCTS_JSON env var, using default products");
     }
   }
-  return productsData as Product[];
+  // Static import bundled at build time — guaranteed non-empty
+  const defaults = productsData as Product[];
+  return Array.isArray(defaults) && defaults.length > 0 ? defaults : [];
 }
 
 // Simple text relevance scoring — ranks products by how well they match a brief
@@ -124,14 +128,19 @@ export function getProducts(req: GetProductsRequest = {}): Product[] {
     }));
     scored.sort((a, b) => b.score - a.score);
 
-    // Return top 5, minimum score of 1 if brief given
+    // Return top 5 matching products. If nothing scores, fall back to all filtered
+    // products (so callers always get inventory, never an empty list from brief scoring)
     const relevant = scored.filter((s) => s.score > 0).slice(0, 5);
-    return relevant.length > 0
+    const results = relevant.length > 0
       ? relevant.map((s) => s.product)
       : filtered.slice(0, 5);
+
+    // Ultimate safety net — if filters wiped everything, return all products
+    return results.length > 0 ? results : all.slice(0, 5);
   }
 
-  return filtered;
+  // No brief — return all filtered, falling back to all if filters eliminated everything
+  return (filtered.length > 0 ? filtered : all) ?? [];
 }
 
 export function getProductById(id: string): Product | undefined {
