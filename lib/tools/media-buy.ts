@@ -3,12 +3,12 @@ import { MediaBuy, CreateMediaBuyRequest, MediaBuyPackage } from "../types";
 import { saveMediaBuy, getMediaBuy, updateMediaBuy } from "../store";
 import { getProductById } from "../products";
 
+// Response matches CreateMediaBuySuccessSchema from @adcp/client:
+// { media_buy_id: string, status?, packages: PackageSchema[] } — flat, no wrapper
 export function createMediaBuy(req: CreateMediaBuyRequest): {
   media_buy_id: string;
-  buyer_ref: string;
   status: string;
-  packages: MediaBuyPackage[];
-  message: string;
+  packages: Array<{ package_id: string; product_id?: string }>;
 } {
   // Validate buyer_ref
   if (!req.buyer_ref) {
@@ -44,7 +44,7 @@ export function createMediaBuy(req: CreateMediaBuyRequest): {
   const mediaBuy: MediaBuy = {
     media_buy_id: mediaBuyId,
     buyer_ref: req.buyer_ref,
-    status: "pending",
+    status: "pending_activation",
     packages,
     start_time: req.start_time,
     end_time: req.end_time,
@@ -56,12 +56,11 @@ export function createMediaBuy(req: CreateMediaBuyRequest): {
 
   saveMediaBuy(mediaBuy);
 
+  // Return flat CreateMediaBuySuccessSchema format
   return {
     media_buy_id: mediaBuyId,
-    buyer_ref: req.buyer_ref,
-    status: "pending",
-    packages,
-    message: `Media buy created successfully. Your order is pending review. Media buy ID: ${mediaBuyId}`,
+    status: "pending_activation",
+    packages: packages.map((p) => ({ package_id: p.package_id, product_id: p.product_id })),
   };
 }
 
@@ -87,7 +86,7 @@ export function patchMediaBuy(
     throw new Error(`Media buy '${mediaBuyId}' not found`);
   }
 
-  const validStatuses = ["pending", "approved", "rejected", "active", "paused", "completed", "cancelled"];
+  const validStatuses = ["pending_activation", "active", "paused", "completed", "rejected", "canceled"];
   if (updates.status && !validStatuses.includes(updates.status)) {
     throw new Error(`Invalid status: ${updates.status}. Must be one of: ${validStatuses.join(", ")}`);
   }

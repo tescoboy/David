@@ -229,7 +229,7 @@ const TOOLS: McpTool[] = [
         },
         status: {
           type: "string",
-          enum: ["pending", "approved", "cancelled", "paused", "active"],
+          enum: ["pending_activation", "active", "paused", "completed", "rejected", "canceled"],
           description: "New status for the media buy",
         },
         start_time: {
@@ -265,35 +265,50 @@ interface ToolResult {
   isError?: boolean;
 }
 
-// Map error messages to AdCP error codes
+// Map error messages to standard AdCP error codes
+// Codes must match the @adcp/client STANDARD_ERROR_CODES table
 function classifyError(message: string): string {
   const msg = message.toLowerCase();
-  if (msg.includes("not found")) return "NOT_FOUND";
+  if (msg.includes("not found") && msg.includes("product")) return "PRODUCT_NOT_FOUND";
+  if (msg.includes("not found") && msg.includes("media buy")) return "INVALID_REQUEST";
+  if (msg.includes("not found")) return "PRODUCT_NOT_FOUND";
   if (msg.includes("required") || msg.includes("missing")) return "INVALID_REQUEST";
-  if (msg.includes("invalid") || msg.includes("bad")) return "VALIDATION_ERROR";
-  if (msg.includes("unauthorized") || msg.includes("auth")) return "UNAUTHORIZED";
-  return "INTERNAL_ERROR";
+  if (msg.includes("invalid") || msg.includes("bad")) return "INVALID_REQUEST";
+  if (msg.includes("unauthorized") || msg.includes("auth")) return "AUTH_REQUIRED";
+  if (msg.includes("unavailable")) return "SERVICE_UNAVAILABLE";
+  return "INVALID_REQUEST";
 }
 
-function adcpError(message: string, recovery?: string): ToolResult {
-  const error_code = classifyError(message);
-  const defaultRecovery: Record<string, string> = {
-    NOT_FOUND: "Check the ID is correct. Use get_products or get_media_buy to look up valid IDs.",
-    INVALID_REQUEST: "Check all required fields are present and correctly formatted.",
-    VALIDATION_ERROR: "Review the input values and correct any invalid fields.",
-    UNAUTHORIZED: "Provide a valid auth token in the Authorization header.",
-    INTERNAL_ERROR: "An unexpected error occurred. Please retry.",
-  };
-  const adcp_error = {
-    error_code,
-    message,
-    recovery: recovery ?? defaultRecovery[error_code],
-    details: null,
-  };
+// Recovery must be one of: "transient" | "correctable" | "terminal"
+function getRecovery(code: string): "transient" | "correctable" | "terminal" {
+  const transient = new Set(["RATE_LIMITED", "SERVICE_UNAVAILABLE", "PRODUCT_UNAVAILABLE"]);
+  const terminal = new Set(["UNSUPPORTED_FEATURE", "ACCOUNT_NOT_FOUND", "ACCOUNT_SETUP_REQUIRED", "ACCOUNT_PAYMENT_REQUIRED", "ACCOUNT_SUSPENDED"]);
+  if (transient.has(code)) return "transient";
+  if (terminal.has(code)) return "terminal";
+  return "correctable";
+}
+
+interface AdcpErrorOptions {
+  code?: string;
+  field?: string;
+  suggestion?: string;
+}
+
+// Build L3-compliant AdCP error per @adcp/client spec:
+//   L1 = isError: true
+//   L2 = content[0].text is JSON { adcp_error: {...} }
+//   L3 = structuredContent.adcp_error present
+function adcpError(message: string, options?: AdcpErrorOptions): ToolResult {
+  const code = options?.code ?? classifyError(message);
+  const recovery = getRecovery(code);
+  const adcp_error: Record<string, unknown> = { code, message, recovery };
+  if (options?.field) adcp_error.field = options.field;
+  if (options?.suggestion) adcp_error.suggestion = options.suggestion;
   return {
     isError: true,
-    content: [{ type: "text", text: JSON.stringify(adcp_error) }],
-    // structuredContent.adcp_error is what AdCP evaluators check for compliance
+    // L2: text must be JSON with adcp_error wrapper (not bare object)
+    content: [{ type: "text", text: JSON.stringify({ adcp_error }) }],
+    // L3: structuredContent.adcp_error for programmatic extraction
     structuredContent: { adcp_error },
   };
 }
@@ -331,10 +346,16 @@ function dispatchTool(name: string, args: ToolArgs): ToolResult {
 
       case "create_media_buy": {
         if (!args.buyer_ref) {
-          return adcpError("buyer_ref is required", "Provide a unique buyer_ref string to identify this order.");
+          return adcpError("buyer_ref is required", {
+            field: "buyer_ref",
+            suggestion: "Provide a unique string to identify this order.",
+          });
         }
         if (!args.packages || !Array.isArray(args.packages) || (args.packages as unknown[]).length === 0) {
-          return adcpError("packages is required and must contain at least one item", "Provide an array of packages, each with a product_id.");
+          return adcpError("packages is required and must contain at least one item", {
+            field: "packages",
+            suggestion: "Provide an array of packages, each with a product_id.",
+          });
         }
         const result = createMediaBuy({
           buyer_ref: args.buyer_ref as string,
@@ -349,26 +370,28 @@ function dispatchTool(name: string, args: ToolArgs): ToolResult {
           budget: args.budget as { amount: number; currency: string } | undefined,
           po_number: args.po_number as string | undefined,
         });
+        // CreateMediaBuySuccessSchema expects flat object: { media_buy_id, packages, status? }
+        // NOT wrapped in { media_buy: ... }
         return {
-          content: [{ type: "text", text: JSON.stringify({ media_buy: result }) }],
-          structuredContent: { media_buy: result },
+          content: [{ type: "text", text: JSON.stringify(result) }],
+          structuredContent: result as unknown as Record<string, unknown>,
         };
       }
 
       case "get_media_buy": {
         if (!args.media_buy_id) {
-          return adcpError("media_buy_id is required");
+          return adcpError("media_buy_id is required", { field: "media_buy_id" });
         }
         const buy = fetchMediaBuy(args.media_buy_id as string);
         return {
-          content: [{ type: "text", text: JSON.stringify({ media_buy: buy }) }],
-          structuredContent: { media_buy: buy },
+          content: [{ type: "text", text: JSON.stringify(buy) }],
+          structuredContent: buy as unknown as Record<string, unknown>,
         };
       }
 
       case "update_media_buy": {
         if (!args.media_buy_id) {
-          return adcpError("media_buy_id is required");
+          return adcpError("media_buy_id is required", { field: "media_buy_id" });
         }
         const updated = patchMediaBuy(args.media_buy_id as string, {
           status: args.status as string | undefined,
@@ -377,13 +400,13 @@ function dispatchTool(name: string, args: ToolArgs): ToolResult {
           budget: args.budget as { amount: number; currency: string } | undefined,
         });
         return {
-          content: [{ type: "text", text: JSON.stringify({ media_buy: updated }) }],
-          structuredContent: { media_buy: updated },
+          content: [{ type: "text", text: JSON.stringify(updated) }],
+          structuredContent: updated as unknown as Record<string, unknown>,
         };
       }
 
       default:
-        return adcpError(`Unknown tool: ${name}`, "Call tools/list to see available tools.");
+        return adcpError(`Unknown tool: ${name}`, { suggestion: "Call tools/list to see available tools." });
     }
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);

@@ -15,9 +15,8 @@ export interface PriceGuidance {
 export interface PricingOption {
   pricing_option_id?: string;
   pricing_model: "cpm" | "cpc" | "flat" | "cpe" | "cpcv";
-  rate?: number;
   currency?: string;
-  is_fixed?: boolean;
+  fixed_price?: number;
   floor_price?: number;
   price_guidance?: PriceGuidance;
 }
@@ -69,7 +68,7 @@ export interface GetProductsResponse {
 export interface MediaBuy {
   media_buy_id: string;
   buyer_ref: string;
-  status: "pending" | "approved" | "rejected" | "active" | "paused" | "completed" | "cancelled";
+  status: "pending_activation" | "active" | "paused" | "completed" | "rejected" | "canceled";
   packages: MediaBuyPackage[];
   start_time?: string;
   end_time?: string;
