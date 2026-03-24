@@ -1,6 +1,26 @@
 import { Product, GetProductsRequest } from "./types";
 import productsData from "../data/products.json";
 
+// Resolve the agent URL for format_ids.agent_url
+// Vercel sets VERCEL_URL automatically (without https://), AGENT_URL can override
+function getAgentUrl(): string {
+  if (process.env.AGENT_URL) return process.env.AGENT_URL;
+  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}/api/mcp`;
+  return "http://localhost:3000/api/mcp";
+}
+
+// Inject agent_url into every format_id entry so evaluators can validate format specs
+function injectAgentUrl(products: Product[]): Product[] {
+  const agentUrl = getAgentUrl();
+  return products.map((p) => ({
+    ...p,
+    format_ids: p.format_ids.map((f) => ({
+      ...f,
+      agent_url: agentUrl,
+    })),
+  }));
+}
+
 // Load products from data file — can be overridden via PRODUCTS_JSON env var
 // Always returns an array (never undefined/null) — defensive fallback included
 function loadProducts(): Product[] {
@@ -8,14 +28,15 @@ function loadProducts(): Product[] {
   if (envProducts) {
     try {
       const parsed = JSON.parse(envProducts);
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed as Product[];
+      if (Array.isArray(parsed) && parsed.length > 0) return injectAgentUrl(parsed as Product[]);
     } catch {
       console.error("Failed to parse PRODUCTS_JSON env var, using default products");
     }
   }
   // Static import bundled at build time — guaranteed non-empty
   const defaults = productsData as Product[];
-  return Array.isArray(defaults) && defaults.length > 0 ? defaults : [];
+  const raw = Array.isArray(defaults) && defaults.length > 0 ? defaults : [];
+  return injectAgentUrl(raw);
 }
 
 // Simple text relevance scoring — ranks products by how well they match a brief

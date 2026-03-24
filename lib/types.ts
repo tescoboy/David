@@ -13,21 +13,19 @@ export interface PriceGuidance {
 }
 
 export interface PricingOption {
+  pricing_option_id?: string;
   pricing_model: "CPM" | "CPC" | "CPV" | "vCPM" | "CPCV";
+  price?: number;
   price_guidance?: PriceGuidance;
   fixed_price?: number;
   floor_price?: number;
   currency?: string;
 }
 
-export interface PropertySelector {
+export interface PublisherPropertySelector {
   selection_type: "all" | "by_id" | "by_tag";
   property_ids?: string[];
   tags?: string[];
-}
-
-export interface PublisherPropertySelector {
-  root: PropertySelector;
 }
 
 export interface TargetingTemplate {
