@@ -434,11 +434,11 @@ function dispatchTool(name: string, args: ToolArgs): ToolResult {
           budget: args.budget as { amount: number; currency: string } | undefined,
           po_number: args.po_number as string | undefined,
         });
-        // CreateMediaBuySuccessSchema expects flat object: { media_buy_id, packages, status? }
-        // NOT wrapped in { media_buy: ... }
+        // Return content-only — evaluator falls back to parsing content[0].text
+        // Omitting structuredContent avoids the _message merge in unwrapMCPResponse
+        // which can interfere with schema validation in some evaluator builds.
         return {
           content: [{ type: "text", text: JSON.stringify(result) }],
-          structuredContent: result as unknown as Record<string, unknown>,
         };
       }
 
@@ -485,7 +485,6 @@ function dispatchTool(name: string, args: ToolArgs): ToolResult {
 
         return {
           content: [{ type: "text", text: JSON.stringify(updated) }],
-          structuredContent: updated as unknown as Record<string, unknown>,
         };
       }
 
