@@ -49,16 +49,31 @@ function formatMediaBuy(row: {
   endTime: string | null;
   createdAt: Date | null;
 }) {
+  const pkgs = (Array.isArray(row.packages) ? row.packages : []) as Record<string, unknown>[];
   return {
     media_buy_id: row.id,
     buyer_ref: row.buyerRef,
     status: row.status,
-    packages: row.packages,
+    packages: pkgs.map((p, i) => ({
+      package_id: (p.package_id as string | undefined) ?? `${row.id}-pkg-${i}`,
+      status: "active",
+      product_id: p.product_id,
+      pricing_option_id: p.pricing_option_id,
+      budget: p.budget ?? null,
+      bid_price: p.bid_price ?? null,
+      start_time: p.start_time ?? null,
+      end_time: p.end_time ?? null,
+      snapshots: { impressions: 0, spend: 0, clicks: 0 },
+    })),
     total_budget: row.totalBudget ? Number(row.totalBudget) : null,
-    start_time: row.startTime,
+    start_time: row.startTime ? (() => { try { return JSON.parse(row.startTime!); } catch { return row.startTime; } })() : null,
     end_time: row.endTime,
     created_at: row.createdAt,
-    snapshots: { impressions: 0, spend: 0, clicks: 0 },
+    valid_actions: row.status === "canceled"
+      ? []
+      : row.status === "paused"
+      ? ["resume", "cancel", "update_budget"]
+      : ["pause", "cancel", "update_budget"],
   };
 }
 
@@ -421,15 +436,23 @@ async function callTool(
       }
     }
 
+    // Persist start_time as JSON string so relative times like {type:"asap"} round-trip correctly
+    const startVal = start_time != null ? JSON.stringify(start_time) : null;
+    const endVal = endStr ?? null;
+
+    // Derive total_budget from packages if not set explicitly
+    const derivedBudget = total_budget
+      ?? packages.reduce((sum, p) => sum + (p.budget ?? 0), 0) || null;
+
     const db = getDb();
     const [row] = await db
       .insert(mediaBuys)
       .values({
         buyerRef: buyer_ref ?? null,
         packages,
-        startTime: startStr ?? null,
-        endTime: endStr ?? null,
-        totalBudget: total_budget?.toString() ?? null,
+        startTime: startVal,
+        endTime: endVal,
+        totalBudget: derivedBudget?.toString() ?? null,
         status: "active",
       })
       .returning();
