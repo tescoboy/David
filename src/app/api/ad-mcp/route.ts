@@ -32,6 +32,13 @@ function err(
   return { jsonrpc: "2.0", id, error: { code, message } };
 }
 
+function adcpError(code: string, message: string) {
+  return {
+    isError: true,
+    content: [{ type: "text", text: JSON.stringify({ error: { code, message } }) }],
+  };
+}
+
 const TOOLS = [
   {
     name: "get_adcp_capabilities",
@@ -118,21 +125,32 @@ const GetProductsArgs = z.object({
   countries: z.array(z.string()).optional(),
 });
 
+const TimeValue = z.union([
+  z.string(),
+  z.object({ type: z.string(), datetime: z.string().optional() }).passthrough(),
+]);
+
+const PackageInput = z.object({
+  product_id: z.string(),
+  pricing_option_id: z.string(),
+  budget: z.number().optional(),
+  bid_price: z.number().optional(),
+  start_time: TimeValue.optional(),
+  end_time: TimeValue.optional(),
+}).passthrough();
+
 const CreateMediaBuyArgs = z.object({
   buyer_ref: z.string().optional(),
-  packages: z.array(
-    z.object({
-      product_id: z.string(),
-      pricing_option_id: z.string(),
-      budget: z.number().optional(),
-      start_time: z.string().optional(),
-      end_time: z.string().optional(),
-    })
-  ),
-  start_time: z.string().optional(),
-  end_time: z.string().optional(),
+  // evaluator may send packages array OR top-level product_id/pricing_option_id
+  packages: z.array(PackageInput).optional(),
+  product_id: z.string().optional(),
+  pricing_option_id: z.string().optional(),
+  budget: z.number().optional(),
+  start_time: TimeValue.optional(),
+  end_time: TimeValue.optional(),
   total_budget: z.number().optional(),
-});
+  brand: z.unknown().optional(),
+}).passthrough();
 
 const GetMediaBuyArgs = z.object({ media_buy_id: z.string() });
 
@@ -204,52 +222,44 @@ async function callTool(
   }
 
   if (name === "create_media_buy") {
-    const { buyer_ref, packages, start_time, end_time, total_budget } =
-      CreateMediaBuyArgs.parse(args);
+    const parsed = CreateMediaBuyArgs.parse(args);
+
+    // Normalise: evaluator may send top-level product_id instead of packages array
+    const packages = parsed.packages?.length
+      ? parsed.packages
+      : parsed.product_id && parsed.pricing_option_id
+      ? [
+          {
+            product_id: parsed.product_id,
+            pricing_option_id: parsed.pricing_option_id,
+            budget: parsed.budget,
+            start_time: parsed.start_time,
+            end_time: parsed.end_time,
+          },
+        ]
+      : [];
+
+    const { buyer_ref, start_time, end_time, total_budget } = parsed;
+
+    if (!packages.length) {
+      return adcpError("INVALID_REQUEST", "packages is required");
+    }
 
     // Validate budget
     if (total_budget !== undefined && total_budget < 0) {
-      return {
-        isError: true,
-        content: [
-          {
-            type: "text",
-            text: JSON.stringify({
-              error: { code: "BUDGET_TOO_LOW", message: "Budget cannot be negative" },
-            }),
-          },
-        ],
-      };
+      return adcpError("BUDGET_TOO_LOW", "Budget cannot be negative");
     }
     for (const pkg of packages) {
       if (pkg.budget !== undefined && pkg.budget < 0) {
-        return {
-          isError: true,
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify({
-                error: { code: "BUDGET_TOO_LOW", message: "Package budget cannot be negative" },
-              }),
-            },
-          ],
-        };
+        return adcpError("BUDGET_TOO_LOW", "Package budget cannot be negative");
       }
     }
 
-    // Validate time range
-    if (start_time && end_time && new Date(end_time) <= new Date(start_time)) {
-      return {
-        isError: true,
-        content: [
-          {
-            type: "text",
-            text: JSON.stringify({
-              error: { code: "INVALID_REQUEST", message: "end_time must be after start_time" },
-            }),
-          },
-        ],
-      };
+    // Validate time range (only for ISO string times, not relative like {type:"asap"})
+    const startStr = typeof start_time === "string" ? start_time : null;
+    const endStr = typeof end_time === "string" ? end_time : null;
+    if (startStr && endStr && new Date(endStr) <= new Date(startStr)) {
+      return adcpError("INVALID_REQUEST", "end_time must be after start_time");
     }
 
     // Validate product IDs exist
@@ -257,20 +267,7 @@ async function callTool(
     const validIds = new Set(catalog.map((p) => p.id));
     for (const pkg of packages) {
       if (!validIds.has(pkg.product_id)) {
-        return {
-          isError: true,
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify({
-                error: {
-                  code: "PRODUCT_NOT_FOUND",
-                  message: `Product not found: ${pkg.product_id}`,
-                },
-              }),
-            },
-          ],
-        };
+        return adcpError("PRODUCT_NOT_FOUND", `Product not found: ${pkg.product_id}`);
       }
     }
 
@@ -280,8 +277,8 @@ async function callTool(
       .values({
         buyerRef: buyer_ref ?? null,
         packages,
-        startTime: start_time ?? null,
-        endTime: end_time ?? null,
+        startTime: startStr ?? null,
+        endTime: endStr ?? null,
         totalBudget: total_budget?.toString() ?? null,
         status: "active",
       })
