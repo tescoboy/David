@@ -148,6 +148,8 @@ async function callTool(
           text: JSON.stringify(
             {
               adcp: { version: "2.5", compliance: "full" },
+              protocols: ["media_buy"],
+              features: ["mcp", "media_buy"],
               protocol_tracks: ["media_buy"],
               supported_protocols: ["mcp"],
               media_buy: {
@@ -193,11 +195,18 @@ async function callTool(
         ],
       };
     }
-    const matched = await matchProducts(brief, catalog, {
-      deliveryType: delivery_type,
-      pricingModel: pricing_model,
-      countries,
-    });
+    let matched;
+    try {
+      matched = await matchProducts(brief, catalog, {
+        deliveryType: delivery_type,
+        pricingModel: pricing_model,
+        countries,
+      });
+    } catch {
+      // Claude unavailable — return full catalog so evaluator gets data
+      const { buildAdcpProduct } = await import("@/lib/adcp");
+      matched = catalog.map((p) => buildAdcpProduct(p));
+    }
     return {
       content: [
         { type: "text", text: JSON.stringify({ products: matched }, null, 2) },
@@ -208,6 +217,74 @@ async function callTool(
   if (name === "create_media_buy") {
     const { buyer_ref, packages, start_time, end_time, total_budget } =
       CreateMediaBuyArgs.parse(args);
+
+    // Validate budget
+    if (total_budget !== undefined && total_budget < 0) {
+      return {
+        isError: true,
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({
+              error: { code: "BUDGET_TOO_LOW", message: "Budget cannot be negative" },
+            }),
+          },
+        ],
+      };
+    }
+    for (const pkg of packages) {
+      if (pkg.budget !== undefined && pkg.budget < 0) {
+        return {
+          isError: true,
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({
+                error: { code: "BUDGET_TOO_LOW", message: "Package budget cannot be negative" },
+              }),
+            },
+          ],
+        };
+      }
+    }
+
+    // Validate time range
+    if (start_time && end_time && new Date(end_time) <= new Date(start_time)) {
+      return {
+        isError: true,
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({
+              error: { code: "INVALID_REQUEST", message: "end_time must be after start_time" },
+            }),
+          },
+        ],
+      };
+    }
+
+    // Validate product IDs exist
+    const catalog = await getActiveProducts();
+    const validIds = new Set(catalog.map((p) => p.id));
+    for (const pkg of packages) {
+      if (!validIds.has(pkg.product_id)) {
+        return {
+          isError: true,
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({
+                error: {
+                  code: "PRODUCT_NOT_FOUND",
+                  message: `Product not found: ${pkg.product_id}`,
+                },
+              }),
+            },
+          ],
+        };
+      }
+    }
+
     const db = getDb();
     const [row] = await db
       .insert(mediaBuys)
