@@ -586,7 +586,7 @@ async function callTool(
         {
           type: "text",
           text: JSON.stringify(
-            { formats: filtered, pagination: { has_next: false, cursor: null } },
+            { formats: filtered, pagination: { has_more: false, has_next: false, cursor: null } },
             null,
             2
           ),
