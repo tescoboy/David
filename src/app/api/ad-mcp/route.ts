@@ -441,8 +441,8 @@ async function callTool(
     const endVal = endStr ?? null;
 
     // Derive total_budget from packages if not set explicitly
-    const derivedBudget = total_budget
-      ?? packages.reduce((sum, p) => sum + (p.budget ?? 0), 0) || null;
+    const packageSum = packages.reduce((sum, p) => sum + (p.budget ?? 0), 0);
+    const derivedBudget = total_budget ?? (packageSum > 0 ? packageSum : null);
 
     const db = getDb();
     const [row] = await db
