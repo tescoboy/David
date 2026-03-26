@@ -180,6 +180,29 @@ const TOOLS = [
       },
     },
   },
+  {
+    name: "list_creative_formats",
+    description: "List available creative format specifications including dimensions, asset types, and validation rules.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        type: { type: "string", enum: ["display", "video", "native"] },
+        format_ids: { type: "array", items: { type: "string" } },
+        is_responsive: { type: "boolean" },
+      },
+    },
+  },
+  {
+    name: "list_authorized_properties",
+    description: "List publisher domains and properties this agent is authorized to sell inventory for.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        property_tags: { type: "array", items: { type: "string" } },
+        publisher_domains: { type: "array", items: { type: "string" } },
+      },
+    },
+  },
 ];
 
 // ── Zod schemas ────────────────────────────────────────────────────────────────
@@ -528,6 +551,75 @@ async function callTool(
     return {
       content: [
         { type: "text", text: JSON.stringify({ delivery }, null, 2) },
+      ],
+    };
+  }
+
+  // ── list_creative_formats ──────────────────────────────────────────────────
+  if (name === "list_creative_formats") {
+    const FORMATS = [
+      { format_id: { agent_url: "https://creative.adcontextprotocol.org", id: "display_300x250" }, name: "Medium Rectangle", type: "display", width: 300, height: 250, asset_types: ["image/jpeg", "image/png", "image/gif", "text/html"], is_responsive: false },
+      { format_id: { agent_url: "https://creative.adcontextprotocol.org", id: "display_728x90" }, name: "Leaderboard", type: "display", width: 728, height: 90, asset_types: ["image/jpeg", "image/png", "image/gif", "text/html"], is_responsive: false },
+      { format_id: { agent_url: "https://creative.adcontextprotocol.org", id: "display_320x50" }, name: "Mobile Banner", type: "display", width: 320, height: 50, asset_types: ["image/jpeg", "image/png", "image/gif"], is_responsive: false },
+      { format_id: { agent_url: "https://creative.adcontextprotocol.org", id: "display_300x600" }, name: "Half Page", type: "display", width: 300, height: 600, asset_types: ["image/jpeg", "image/png", "image/gif", "text/html"], is_responsive: false },
+      { format_id: { agent_url: "https://creative.adcontextprotocol.org", id: "display_970x250" }, name: "Billboard", type: "display", width: 970, height: 250, asset_types: ["image/jpeg", "image/png", "image/gif", "text/html"], is_responsive: false },
+      { format_id: { agent_url: "https://creative.adcontextprotocol.org", id: "display_320x480" }, name: "Mobile Interstitial", type: "display", width: 320, height: 480, asset_types: ["image/jpeg", "image/png", "text/html"], is_responsive: false },
+      { format_id: { agent_url: "https://creative.adcontextprotocol.org", id: "display_160x600" }, name: "Wide Skyscraper", type: "display", width: 160, height: 600, asset_types: ["image/jpeg", "image/png", "image/gif", "text/html"], is_responsive: false },
+      { format_id: { agent_url: "https://creative.adcontextprotocol.org", id: "video_vast" }, name: "Video VAST", type: "video", asset_types: ["video/mp4", "application/xml"], is_responsive: false, video_specs: { min_duration_s: 6, max_duration_s: 30, vast_versions: ["2.0", "3.0", "4.0"] } },
+      { format_id: { agent_url: "https://creative.adcontextprotocol.org", id: "native_infeed" }, name: "Native In-Feed", type: "native", asset_types: ["image/jpeg", "image/png"], is_responsive: true, native_fields: ["title", "body", "image", "cta", "sponsor"] },
+      { format_id: { agent_url: "https://creative.adcontextprotocol.org", id: "native_article" }, name: "Native Article", type: "native", asset_types: ["image/jpeg", "image/png"], is_responsive: true, native_fields: ["title", "body", "image", "cta", "sponsor"] },
+    ];
+
+    const typeFilter = (args.type as string | undefined);
+    const idFilter = (args.format_ids as string[] | undefined);
+    const responsiveFilter = (args.is_responsive as boolean | undefined);
+
+    const filtered = FORMATS.filter((f) => {
+      if (typeFilter && f.type !== typeFilter) return false;
+      if (idFilter?.length && !idFilter.includes(f.format_id.id)) return false;
+      if (responsiveFilter !== undefined && f.is_responsive !== responsiveFilter) return false;
+      return true;
+    });
+
+    return {
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify(
+            { formats: filtered, pagination: { has_next: false, cursor: null } },
+            null,
+            2
+          ),
+        },
+      ],
+    };
+  }
+
+  // ── list_authorized_properties ─────────────────────────────────────────────
+  if (name === "list_authorized_properties") {
+    return {
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify(
+            {
+              publisher_domains: ["david-five-kappa.vercel.app"],
+              primary_channels: ["display", "video", "native", "ctv"],
+              primary_countries: ["US", "GB", "CA", "AU", "DE", "FR"],
+              portfolio_description:
+                "Premium advertising inventory from David Ad Server. Covers display, video, native, and CTV formats across desktop and mobile web properties.",
+              advertising_policies:
+                "## Advertising Policies\n\n" +
+                "**Accepted Categories:** IAB-compliant advertising across all standard categories.\n\n" +
+                "**Prohibited Content:** Adult content, illegal products, misleading claims, hate speech.\n\n" +
+                "**Brand Safety:** All placements are brand-safe by default. Contextual targeting available.\n\n" +
+                "**Creative Requirements:** Creatives must comply with IAB LEAN standards. Max animation 15s, max file size 150KB for display.",
+              last_updated: new Date().toISOString(),
+            },
+            null,
+            2
+          ),
+        },
       ],
     };
   }
