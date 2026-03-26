@@ -147,34 +147,23 @@ async function callTool(
           type: "text",
           text: JSON.stringify(
             {
-              adcp: { version: "2.5", compliance: "full" },
-              protocols: ["media_buy"],
-              features: ["mcp", "media_buy"],
-              protocol_tracks: ["media_buy"],
-              supported_protocols: ["mcp"],
+              adcp: { major_versions: [3] },
+              supported_protocols: ["media_buy"],
               media_buy: {
-                delivery_types: ["guaranteed", "non_guaranteed"],
-                pricing_models: ["cpm", "vcpm", "cpc", "flat_rate"],
-                currencies: ["USD", "GBP", "EUR"],
-                supports_create_media_buy: true,
-                supports_get_media_buy: true,
+                portfolio: {
+                  publisher_domains: ["david-five-kappa.vercel.app"],
+                  primary_channels: ["display", "video", "native", "ctv"],
+                  description: "Premium advertising inventory from David Ad Server",
+                },
+                execution: {
+                  delivery_types: ["guaranteed", "non_guaranteed"],
+                },
               },
               targeting: {
-                geo: true,
-                device: true,
-                contextual: true,
-                audience: true,
+                geo_countries: true,
+                device_platform: true,
+                audience_include: true,
               },
-              formats: [
-                "display_300x250",
-                "display_728x90",
-                "display_320x50",
-                "display_300x600",
-                "display_970x250",
-                "video_vast",
-                "native_infeed",
-                "native_article",
-              ],
             },
             null,
             2
