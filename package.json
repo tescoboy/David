@@ -5,8 +5,8 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "vercel-build": "next build && tsx scripts/seed.ts",
     "start": "next start",
-    "db:push": "drizzle-kit push",
     "db:seed": "tsx scripts/seed.ts"
   },
   "dependencies": {
