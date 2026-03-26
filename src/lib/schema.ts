@@ -38,5 +38,19 @@ export const pricingOptions = pgTable("pricing_options", {
   priceGuidance: jsonb("price_guidance"),
 });
 
+export const mediaBuys = pgTable("media_buys", {
+  id: text("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  buyerRef: text("buyer_ref"),
+  status: text("status").notNull().default("active"),
+  packages: jsonb("packages").notNull().default(sql`'[]'::jsonb`),
+  totalBudget: numeric("total_budget"),
+  startTime: text("start_time"),
+  endTime: text("end_time"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+});
+
 export type Product = typeof products.$inferSelect;
 export type PricingOption = typeof pricingOptions.$inferSelect;
+export type MediaBuy = typeof mediaBuys.$inferSelect;

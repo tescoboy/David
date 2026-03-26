@@ -254,6 +254,18 @@ async function seed() {
       price_guidance JSONB
     )
   `;
+  await sql`
+    CREATE TABLE IF NOT EXISTS media_buys (
+      id TEXT PRIMARY KEY DEFAULT gen_random_uuid(),
+      buyer_ref TEXT,
+      status TEXT NOT NULL DEFAULT 'active',
+      packages JSONB NOT NULL DEFAULT '[]',
+      total_budget NUMERIC,
+      start_time TEXT,
+      end_time TEXT,
+      created_at TIMESTAMPTZ DEFAULT now()
+    )
+  `;
 
   let inserted = 0;
   let skipped = 0;
